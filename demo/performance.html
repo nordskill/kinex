@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinex Performance Test</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: black;
+        }
+
+        #container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 1px;
+            height: 1px;
+            overflow: visible;
+        }
+
+        #fps {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+        }
+
+        #fpsGraph,
+        #cpuGraph {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+        }
+
+        #cpuGraph {
+            left: 220px;
+        }
+
+        .buttons {
+            display: grid;
+            justify-content: end;
+            position: fixed;
+            z-index: 1;
+            right: 0;
+            top: 0;
+        }
+
+        button {
+            cursor: pointer;
+        }
+        button.active {
+            background-color: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="container">
+        <img src="img/star.png" width="1" height="1"
+            style="position: absolute; left: '0px'; top: '0px'; width: 1px; height: 1px;">
+    </div>
+    <div id="fps">FPS: 0</div>
+    <canvas id="fpsGraph" width="200" height="80"></canvas>
+    <div class="buttons">
+        <button id="kinex_transform" class="active">Kinex</button>
+        <button id="waapi">WAAPI</button>
+        <button id="gsap">GSAP</button>
+        <button id="kinex_top_left">Kinex (top/left)</button>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script type="module">
+
+        // Test reference: https://gsap.com/js/speed.html
+
+        import kinex from '../src/kinex.js'; // Update this path if needed
+
+        gsap.defaults({ overwrite: 'auto' });
+
+        const img = document.querySelector('img');
+        const container = document.getElementById('container');
+        const numStars = 2000;
+        const starSize = 30;
+        const duration = 1000;
+        const windowSize = Math.sqrt(window.innerWidth ** 2 + window.innerHeight ** 2);
+
+        let stars = [];
+
+        const animate = {
+            'kinex_transform': (star, i) => {
+
+                const c = {
+                    x: 0,
+                    y: 0,
+                    scale: 1,
+                    opacity: 0.3
+                }
+
+                const { x, y } = getRandomRingCoordinate(0, 0, windowSize / 2 + starSize);
+                const delay = i * 2;
+
+                const animation = kinex.to(c, duration, { x, y, scale: starSize, opacity: 1 }, {
+                    delay,
+                    on_update: () => {
+                        star.style.transform = `translate(${c.x}px, ${c.y}px) scale(${c.scale})`;
+                        star.style.opacity = c.opacity;
+                    },
+                    on_complete: (values, inst) => {
+                        star.style.transform = `translate(0px, 0px) scale(1)`;
+                        animate.kinex_transform(star, i);
+                    }
+                });
+
+            },
+            'waapi': (star, i) => {
+
+                const { x, y } = getRandomRingCoordinate(0, 0, windowSize / 2 + starSize);
+                const delay = i * 2;
+
+                star.style.opacity = 0.3;
+
+                star.animate({ transform: `translate(${x}px, ${y}px) scale(${starSize})`, opacity: 1 }, {
+                    duration: duration,
+                    easing: 'linear',
+                    delay,
+                }).onfinish = () => {
+                    animate.waapi(star, i);
+                };
+
+            },
+            'gsap': (star, i) => {
+
+                const { x, y } = getRandomRingCoordinate(0, 0, windowSize / 2 + starSize);
+                const delay = i * 2 / 1000;
+
+                star.style.opacity = 0.3;
+
+                gsap.to(star, {
+                    duration: duration / 1000,
+                    opacity: 1,
+                    x: x,
+                    y: y,
+                    delay,
+                    scale: starSize,
+                    onComplete: () => {
+                        gsap.set(star, { x: 0, y: 0, scale: 1 });
+                        animate.gsap(star, i);
+                    }
+                });
+
+            },
+            'kinex_top_left': (star, i) => {
+
+                const { x, y } = getRandomRingCoordinate(0, 0, windowSize / 2 + starSize);
+                const delay = i * 2;
+
+                // star.style.opacity = 0.3;
+
+                kinex.to(star.style, duration, { left: x + 'px', top: y + 'px', scale: starSize }, {
+                    delay,
+                    on_complete: () => {
+                        star.style.left = '0px';
+                        star.style.top = '0px';
+                        star.style.scale = 1;
+                        animate.kinex_top_left(star, i);
+                    }
+                });
+
+            }
+        }
+
+        const buttons = document.querySelectorAll('.buttons button');
+        buttons.forEach(button => {
+            button.addEventListener('click', () => {
+                kinex.stop_all();
+                stars.forEach(star => star.remove());
+                stars = [];
+
+                buttons.forEach(b => {
+                    b.classList.toggle('active', b === button);
+                });
+
+                for (let i = 0; i < numStars; i++) {
+                    const star = img.cloneNode();
+                    container.appendChild(star);
+                    stars.push(star);
+                    animate[button.id](star, i);
+                }
+
+            });
+        });
+
+
+        for (let i = 0; i < numStars; i++) {
+            const star = img.cloneNode();
+            container.appendChild(star);
+            stars.push(star);
+            animate.kinex_transform(star, i);
+        }
+
+        function getRandomRingCoordinate(centerX, centerY, radius) {
+            const angle = Math.random() * 2 * Math.PI;
+            const x = centerX + radius * Math.cos(angle);
+            const y = centerY + radius * Math.sin(angle);
+            return { x, y };
+        }
+
+        // FPS calculation and graph
+        let frameCount = 0;
+        let lastTime = performance.now();
+        const fpsElement = document.getElementById('fps');
+        const canvas = document.getElementById('fpsGraph');
+        const ctx = canvas.getContext('2d');
+        const fpsData = [];
+        const maxDataPoints = 200;
+
+        function updateFPS() {
+            const now = performance.now();
+            frameCount++;
+
+            if (now - lastTime >= 1000) {
+                const fps = Math.round((frameCount * 1000) / (now - lastTime));
+                fpsElement.textContent = `FPS: ${fps}`;
+                frameCount = 0;
+                lastTime = now;
+
+                fpsData.push(fps);
+                if (fpsData.length > maxDataPoints) {
+                    fpsData.shift();
+                }
+
+                drawFPSGraph();
+            }
+
+            requestAnimationFrame(updateFPS);
+        }
+
+        function drawFPSGraph() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const maxFPS = Math.max(...fpsData, 60);
+            const scaleY = canvas.height / maxFPS;
+
+            // Draw horizontal lines for each 10 FPS
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 1;
+            for (let fps = 10; fps < maxFPS; fps += 10) {
+                const y = canvas.height - (fps * scaleY);
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            ctx.strokeStyle = 'lime';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+
+            for (let index = 0; index < fpsData.length; index++) {
+                const fps = fpsData[index];
+                const x = (index / (maxDataPoints - 1)) * canvas.width;
+                const y = canvas.height - (fps * scaleY);
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+
+            ctx.stroke();
+        }
+
+        updateFPS();
+
+    </script>
+</body>
+
+</html>

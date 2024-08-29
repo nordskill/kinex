@@ -1,0 +1,27 @@
+{
+    "name": "@nordskill/kinex",
+    "version": "1.0.2",
+    "description": "Kinex (Kinetic Expressions): The World's smallest and fastest JavaScript animation library, designed to meet 90% of common daily animation needs.",
+    "main": "src/kinex.js",
+    "scripts": {
+        "min": "terser lib/kinex.js -o lib/kinex.min.js --mangle toplevel=true --source-map"
+    },
+    "keywords": [
+        "animation",
+        "interpolation",
+        "easing",
+        "scroll",
+        "style",
+        "cubic-bezier"
+    ],
+    "author": "Oleksii Segodin",
+    "license": "MIT",
+    "devDependencies": {
+        "terser": "^5.31.6"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/nordskill/kinex.git"
+    },
+    "homepage": "https://kinex.dev"
+}
