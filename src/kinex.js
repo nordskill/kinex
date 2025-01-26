@@ -20,8 +20,9 @@ export default class Kinex {
     }
 
     static stop_all() {
-        for (const animation of Kinex.active_animations.values()) {
-            animation.stop();
+        for (let i = 0; i < Kinex.active_animations.length; i++) {
+            Kinex.active_animations[i].stop();
+            
         }
         Kinex.active_animations.clear();
     }
@@ -30,6 +31,8 @@ export default class Kinex {
         this.target = target;
         this.#reset(duration, properties, options);
         this.stop = this.stop.bind(this);
+        this.boundStep = this.#step.bind(this);
+        Kinex.active_animations.set(target, this);
     }
 
     stop() {
