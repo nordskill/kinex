@@ -1,7 +1,7 @@
 export default class Kinex {
 
     static active_animations = new Map();
-    
+
     static to(target, duration, properties, options = {}) {
         return Kinex.#get_or_create_instance(target, duration, properties, options).#animate();
     }
@@ -53,9 +53,9 @@ export default class Kinex {
         this.startProperties = options.startProperties || {};
         this.properties = this.#normalize_properties(properties);
         this.easing = this.#parse_easing(options.easing);
-        this.on_start = options.on_start || (() => {});
-        this.on_update = options.on_update || (() => {});
-        this.on_complete = options.on_complete || (() => {});
+        this.on_start = options.on_start || (() => { });
+        this.on_update = options.on_update || (() => { });
+        this.on_complete = options.on_complete || (() => { });
         this.startTime = null;
         this.animationFrame = null;
         this.stopped = false;
@@ -68,7 +68,6 @@ export default class Kinex {
             instance.#reset(duration, properties, options);
         } else {
             instance = new Kinex(target, duration, properties, options);
-            Kinex.active_animations.set(target, instance);
         }
         return instance;
     }
