@@ -53,6 +53,7 @@
         button {
             cursor: pointer;
         }
+
         button.active {
             background-color: #007bff;
             color: white;
@@ -119,23 +120,24 @@
 
             },
             'waapi': (star, i) => {
-
                 const { x, y } = getRandomRingCoordinate(0, 0, windowSize / 2 + starSize);
                 const delay = i * 2;
 
                 star.style.opacity = 0.3;
 
-                star.animate({ transform: `translate(${x}px, ${y}px) scale(${starSize})`, opacity: 1 }, {
+                const animation = star.animate({ transform: `translate(${x}px, ${y}px) scale(${starSize})`, opacity: 1 }, {
                     duration: duration,
                     easing: 'linear',
                     delay,
-                }).onfinish = () => {
+                });
+
+                star.waapiAnimation = animation;
+
+                animation.onfinish = () => {
                     animate.waapi(star, i);
                 };
-
             },
             'gsap': (star, i) => {
-
                 const { x, y } = getRandomRingCoordinate(0, 0, windowSize / 2 + starSize);
                 const delay = i * 2 / 1000;
 
@@ -153,7 +155,6 @@
                         animate.gsap(star, i);
                     }
                 });
-
             },
             'kinex_top_left': (star, i) => {
 
@@ -179,7 +180,20 @@
         buttons.forEach(button => {
             button.addEventListener('click', () => {
                 kinex.stop_all();
-                stars.forEach(star => star.remove());
+
+                stars.forEach(star => {
+                    // Stop GSAP animations
+                    gsap.killTweensOf(star);
+
+                    // Stop WAAPI animations
+                    if (star.waapiAnimation) {
+                        star.waapiAnimation.cancel();
+                        star.waapiAnimation = null;
+                    }
+
+                    star.remove();
+                });
+
                 stars = [];
 
                 buttons.forEach(b => {
@@ -192,10 +206,8 @@
                     stars.push(star);
                     animate[button.id](star, i);
                 }
-
             });
         });
-
 
         for (let i = 0; i < numStars; i++) {
             const star = img.cloneNode();
