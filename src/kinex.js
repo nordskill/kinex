@@ -162,6 +162,7 @@ export default class Kinex {
         progress = this.easing(progress);
 
         const currentValues = {};
+        let batchStyles = '';
 
         for (const prop of this.properties) {
             const currentValue = prop.start + (prop.end - prop.start) * progress;
@@ -170,7 +171,7 @@ export default class Kinex {
             currentValues[prop.name] = formattedValue;
 
             if (this.target instanceof Element || this.target instanceof HTMLElement) {
-                this.target.style[prop.name] = formattedValue;
+                batchStyles += `${prop.name}: ${formattedValue}; `;  // Batch style updates.
             } else if (this.target === window && prop.name === 'scrollY') {
                 window.scrollTo(0, currentValue);
             } else {
@@ -178,10 +179,14 @@ export default class Kinex {
             }
         }
 
+        if (batchStyles) {
+            this.target.style.cssText += batchStyles;  // Apply all batched styles at once to reduce repaint.
+        }
+
         this.on_update(currentValues, this);
 
         if (progress < 1) {
-            this.animationFrame = requestAnimationFrame(this.#step.bind(this));
+            this.animationFrame = requestAnimationFrame(this.boundStep);
         } else {
             if (!this.stopped) {
                 this.on_complete(currentValues, this);
