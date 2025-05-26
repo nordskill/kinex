@@ -38,7 +38,6 @@ export default class Kinex {
         this.target = target;
         this.#reset(duration, properties, options);
         this.stop = this.stop.bind(this);
-        this.boundStep = this.#step.bind(this);
         Kinex.active_animations.set(target, this);
     }
 
@@ -172,7 +171,7 @@ export default class Kinex {
         return Object.assign(promise, { stop: this.stop });
     }
 
-    #step(currentTime) {
+    #step = (currentTime) => {
         if (this.stopped) return;
         if (!this.startTime) this.startTime = currentTime;
 
@@ -201,7 +200,7 @@ export default class Kinex {
         this.on_update(currentValues, this);
 
         if (progress < 1) {
-            this.animationFrame = requestAnimationFrame(this.boundStep);
+            this.animationFrame = requestAnimationFrame(this.#step);
         } else {
             if (!this.stopped) {
                 this.on_complete(currentValues, this);
@@ -209,7 +208,7 @@ export default class Kinex {
                 this.resolve();
             }
         }
-    }
+    };
 
     static cubic_bezier(x1, y1, x2, y2) {
         const cx = 3 * x1;
