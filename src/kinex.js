@@ -104,11 +104,12 @@ export default class Kinex {
                 const start = this.startProperties[name] ?? this.#get_start_value(name, endValue);
                 const parsedStart = this.#parse_value(start);
                 const parsedEnd = this.#parse_value(endValue);
+                const unit = this.#get_unit(endValue);
                 return {
                     name,
                     start: parsedStart,
-                    end: parsedEnd,
-                    unit: this.#get_unit(endValue),
+                    delta: parsedEnd - parsedStart,
+                    unit,
                     needsInterpolation: parsedStart !== parsedEnd
                 };
             })
@@ -183,7 +184,7 @@ export default class Kinex {
         const isDOMTarget = this.target instanceof Element; // Covers HTMLElement, SVGElement, etc.; single prototype walk
 
         for (const prop of this.properties) {
-            const currentValue = prop.start + (prop.end - prop.start) * progress;
+            const currentValue = prop.start + prop.delta * progress;
             const formattedValue = prop.unit ? `${currentValue}${prop.unit}` : currentValue;
 
             currentValues[prop.name] = formattedValue;
