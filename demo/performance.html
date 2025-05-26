@@ -148,23 +148,31 @@
                 };
             },
             'gsap': (star, i) => {
-                const { x, y } = getRandomRingCoordinate(0, 0, windowSize / 2 + starSize);
-                const delay = i * 2 / 1000;
+                // one-time cache per star
+                const setX       = gsap.quickSetter(star, "x", "px");
+                const setY       = gsap.quickSetter(star, "y", "px");
+                const setOpacity = gsap.quickSetter(star, "opacity");
 
-                star.style.opacity = 0.3;
+                // we'll build the transform string ourselves
+                const hop = () => {
+                    const { x, y } = getRandomRingCoordinate(0,0,windowSize/2+starSize);
+                    const v = { x:0, y:0, scale:1, opacity:0.3 };
 
-                gsap.to(star, {
-                    duration: duration / 1000,
-                    opacity: 1,
-                    x: x,
-                    y: y,
-                    delay,
-                    scale: starSize,
-                    onComplete: () => {
-                        gsap.set(star, { x: 0, y: 0, scale: 1 });
-                        animate.gsap(star, i);
-                    }
-                });
+                    gsap.to(v,{
+                        duration: duration/1000,
+                        delay: i*2/1000,
+                        x, y, scale: starSize, opacity:1,
+
+                        onUpdate(){
+                            setX(v.x);
+                            setY(v.y);
+                            star.style.transform = `translate(${v.x}px,${v.y}px) scale(${v.scale})`;
+                            setOpacity(v.opacity);
+                        },
+                        onComplete: hop
+                    });
+                };
+                hop();
             },
             'kinex_top_left': (star, i) => {
 
