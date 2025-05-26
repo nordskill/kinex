@@ -20,9 +20,8 @@ export default class Kinex {
     }
 
     static stop_all() {
-        for (let i = 0; i < Kinex.active_animations.length; i++) {
-            Kinex.active_animations[i].stop();
-            
+        for (const anim of Kinex.active_animations.values()) {
+            anim.stop();
         }
         Kinex.active_animations.clear();
     }
