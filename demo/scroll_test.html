@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Kinex – window scroll demo</title>
+    <style>
+        /* Make the page tall so that scrollY has somewhere to go */
+        body {
+            margin: 0;
+            font-family: system-ui, sans-serif;
+        }
+
+        .spacer {
+            height: 3500px;
+            background: linear-gradient(#fafafa 0%, #e0e0e0 100%);
+        }
+
+        #scroll-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: .5rem 1rem;
+            font-size: 1rem;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="scroll-btn">Scroll down 800&nbsp;px</button>
+    <div class="spacer"></div>
+
+    <script type="module">
+        import Kinex from '../src/kinex.js';
+
+        const btn = document.getElementById('scroll-btn');
+
+        btn.addEventListener('click', () => {
+            /*
+             * Animate window.scrollY from its current value to 800 px over 1 second.
+             */
+            Kinex.to(window, 1000, { scrollY: 800 }, { easing: [0.5, 0, 0, 1] });
+        });
+    </script>
+</body>
+
+</html>
