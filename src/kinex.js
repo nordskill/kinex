@@ -2,6 +2,14 @@ export default class Kinex {
 
     static active_animations = new Map();
 
+    /**
+     * Cache for cubic-bezier easing functions keyed by the four control points.
+     * Re-using the same closure keeps V8 from allocating identical functions on
+     * every animation instance that shares the same easing.
+     * @private
+     */
+    static _easing_cache = new Map();
+
     static to(target, duration, properties, options = {}) {
         return Kinex.#get_or_create_instance(target, duration, properties, options).#animate();
     }
@@ -72,10 +80,19 @@ export default class Kinex {
     }
 
     #parse_easing(easing) {
+        // Accept cubic-bezier expressed as an array of four numbers.
         if (Array.isArray(easing) && easing.length === 4) {
-            return Kinex.cubic_bezier(...easing);
+            const key = easing.join(','); // e.g. "0.25,0.1,0.25,1"
+            let fn = Kinex._easing_cache.get(key);
+            if (!fn) {
+                fn = Kinex.cubic_bezier(...easing);
+                Kinex._easing_cache.set(key, fn);
+            }
+            return fn;
         }
-        return easing || (t => t); // Linear easing by default
+
+        // If caller supplies a function, use it; otherwise default to linear.
+        return easing || (t => t);
     }
 
     #normalize_properties(properties) {
