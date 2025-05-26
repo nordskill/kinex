@@ -98,7 +98,7 @@ export default class Kinex {
     #get_start_value(name, endValue) {
 
         if (this.reversed) return endValue;
-        if (this.target instanceof Element || this.target instanceof HTMLElement) {
+        if (this.target instanceof Element) {
             const currentValue = this.target.style[name];
             if (currentValue === '') {
                 throw new Error(`Starting value for property "${name}" is not set.`);
@@ -160,7 +160,7 @@ export default class Kinex {
         progress = this.easing(progress);
 
         const currentValues = {};
-        const isDOMTarget = this.target instanceof HTMLElement; // Cache boolean for branch predictability
+        const isDOMTarget = this.target instanceof Element; // Covers HTMLElement, SVGElement, etc.; single prototype walk
 
         for (const prop of this.properties) {
             const currentValue = prop.start + (prop.end - prop.start) * progress;
