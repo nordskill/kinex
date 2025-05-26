@@ -66,6 +66,9 @@ export default class Kinex {
         this.startTime = null;
         this.animationFrame = null;
         this.stopped = false;
+
+        // Reusable container for per-frame property values; avoids GC churn.
+        this.currentValues = {};
     }
 
     static #get_or_create_instance(target, duration, properties, options) {
@@ -176,7 +179,7 @@ export default class Kinex {
         let progress = Math.min(elapsedTime / this.duration, 1);
         progress = this.easing(progress);
 
-        const currentValues = {};
+        const currentValues = this.currentValues;
         const isDOMTarget = this.target instanceof Element; // Covers HTMLElement, SVGElement, etc.; single prototype walk
 
         for (const prop of this.properties) {
