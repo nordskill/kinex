@@ -1,3 +1,11 @@
+/*
+ * Lightweight, garbage-friendly tweening engine driven by a single
+ * requestAnimationFrame loop.
+ *
+ * Use `Kinex.to()` / `Kinex.from()` to create tweens. Each call returns a
+ * Promise that resolves when the animation completes and exposes a `.stop()`
+ * helper for early cancellation.
+ */
 export default class Kinex {
 
     static active_animations = new Map();
@@ -10,10 +18,59 @@ export default class Kinex {
      */
     static _easing_cache = new Map();
 
+    /**
+     * A single, shared linear easing used when caller doesn't specify one.
+     * Declared early so V8 can inline it everywhere.
+     * @type {(t:number)=>number}
+     */
+    static linear = t => t;
+
+    /**
+     * Simple object-pool to recycle Kinex instances once they complete.
+     * This avoids a new allocation for identical targets that get animated
+     * over and over again (as in the star-field demo) and therefore reduces
+     * GC churn.
+     * @private
+     */
+    static _instance_pool = [];
+
+    /**
+     * rAF handle for the single, shared scheduler that drives *all* active
+     * tweens.  Having one global loop instead of one per animation saves ~2k
+     * callbacks in the performance demo and noticeably shrinks both the JS
+     * heap and the task queue pressure.
+     * @private {number|null}
+     */
+    static _raf_id = null;
+
+    /**
+     * True while the instance lives in the object pool.
+     * A dedicated flag is cheaper than calling Array.includes() on every push.
+     * @private {boolean}
+     */
+    _inPool = false;
+
+    /**
+     * Tween `target` from its current values to `properties`.
+     * @param {Object|Element|Window} target
+     * @param {number} duration           Duration in milliseconds.
+     * @param {Object<string,number|string>} properties  Final values.
+     * @param {Object} [options]
+     * @returns {Promise & {stop():Kinex}}
+     */
     static to(target, duration, properties, options = {}) {
         return Kinex.#get_or_create_instance(target, duration, properties, options).#animate();
     }
 
+    /**
+     * Like {@link Kinex.to} but starts from the given values and animates to
+     * the target's current state.
+     * @param {Object|Element|Window} target
+     * @param {number} duration
+     * @param {Object<string,number|string>} properties  Start values.
+     * @param {Object} [options]
+     * @returns {Promise & {stop():Kinex}}
+     */
     static from(target, duration, properties, options = {}) {
         const startProperties = Object.fromEntries(
             Object.entries(properties).map(([prop, value]) => [prop, value])
@@ -27,10 +84,18 @@ export default class Kinex {
         }).#animate();
     }
 
+    /**
+     * Immediately stop and recycle every running animation.
+     */
     static stop_all() {
-        for (const anim of Kinex.active_animations.values()) {
+        // Clone current animations to avoid mutating the Map while iterating which could
+        // otherwise cause some entries to be missed on certain JS engines.
+        const running = Array.from(Kinex.active_animations.values());
+        for (const anim of running) {
             anim.stop();
         }
+        // `.stop()` already removes each animation from the Map, but clearing guarantees
+        // that no stragglers survive if a consumer mistakenly re-inserts during `stop()`.
         Kinex.active_animations.clear();
     }
 
@@ -43,13 +108,31 @@ export default class Kinex {
 
     stop() {
         this.stopped = true;
-        if (this.animationFrame) {
-            cancelAnimationFrame(this.animationFrame);
+        if (this.timeoutID != null) {
+            clearTimeout(this.timeoutID);
+            this.timeoutID = null;
         }
         Kinex.active_animations.delete(this.target);
         if (this.resolve) {
             this.resolve();
         }
+
+        /*
+         * BREAK ALL STRONG REFERENCES so that the GC can promptly reclaim memory,
+         * especially DOM nodes (star.style) that may otherwise linger and inflate
+         * the "DOM Nodes" counter in DevTools.
+         */
+        this.target = null;
+        this.properties = null;
+        this.currentValues = null;
+        this.on_start = this.on_update = this.on_complete = null;
+
+        // Make the object available for reuse if it hasn't been reclaimed yet.
+        if (!this._inPool) {
+            this._inPool = true;
+            Kinex._instance_pool.push(this);
+        }
+
         return this;
     }
 
@@ -63,8 +146,9 @@ export default class Kinex {
         this.on_update = options.on_update || (() => { });
         this.on_complete = options.on_complete || (() => { });
         this.startTime = null;
-        this.animationFrame = null;
+        this.timeoutID = null;
         this.stopped = false;
+        this.started = false;
 
         // Pre-compute reciprocal to turn division into multiplication inside the hot loop.
         this._invDuration = 1 / this.duration;
@@ -75,13 +159,28 @@ export default class Kinex {
 
     static #get_or_create_instance(target, duration, properties, options) {
         let instance = Kinex.active_animations.get(target);
+
         if (instance) {
+            // Target already has an active tween – recycle it.
             instance.stop();
+            instance.target = target;
             instance.#reset(duration, properties, options);
-        } else {
-            instance = new Kinex(target, duration, properties, options);
+            Kinex.active_animations.set(target, instance);
+            return instance;
         }
-        return instance;
+
+        // Try to re-use a previously finished Kinex object from the pool.
+        if (Kinex._instance_pool.length) {
+            instance = Kinex._instance_pool.pop();
+            instance._inPool = false;
+            instance.target = target;
+            instance.#reset(duration, properties, options);
+            Kinex.active_animations.set(target, instance);
+            return instance;
+        }
+
+        // Nothing to recycle – fall back to a fresh allocation.
+        return new Kinex(target, duration, properties, options);
     }
 
     #parse_easing(easing) {
@@ -97,7 +196,7 @@ export default class Kinex {
         }
 
         // If caller supplies a function, use it; otherwise default to linear.
-        return easing || (t => t);
+        return easing || Kinex.linear;
     }
 
     #normalize_properties(properties) {
@@ -148,8 +247,10 @@ export default class Kinex {
             this.resolve = resolve;
 
             const startAnimation = () => {
+                this.started = true;
                 this.startTime = performance.now();
-                this.#step(this.startTime);
+                this.#update(this.startTime);
+                Kinex.#ensure_scheduler();
             };
 
             const willAnimateProperties = {};
@@ -163,7 +264,10 @@ export default class Kinex {
             this.on_start(willAnimateProperties, this);
 
             if (this.delay > 0) {
-                setTimeout(startAnimation, this.delay);
+                this.timeoutID = setTimeout(() => {
+                    this.timeoutID = null;
+                    startAnimation();
+                }, this.delay);
             } else {
                 startAnimation();
             }
@@ -172,10 +276,18 @@ export default class Kinex {
         return Object.assign(promise, { stop: this.stop });
     }
 
-    #step = (currentTime) => {
-        if (this.stopped) return;
+    /**
+     * Per-instance update run by the shared scheduler.  It is *not* in charge
+     * of scheduling the next frame – that is now handled globally – which
+     * means we simply compute the new state and mark ourselves complete when
+     * the eased progress reaches 1.
+     * @private
+     */
+    #update = (currentTime) => {
+        if (this.stopped || !this.started) return;
         if (!this.startTime) this.startTime = currentTime;
 
+        const initialStartTime = this.startTime;
         const progress = this.#compute_progress(currentTime);
 
         const currentValues = this.currentValues;
@@ -198,12 +310,25 @@ export default class Kinex {
 
         this.on_update(currentValues, this);
 
-        if (progress < 1) {
-            this.animationFrame = requestAnimationFrame(this.#step);
-        } else {
-            if (!this.stopped) {
-                this.on_complete(currentValues, this);
+        if (progress >= 1 && !this.stopped) {
+            this.on_complete(currentValues, this);
+
+            /*
+             * If on_complete DID NOT restart this object (its startTime stayed
+             * the same) we can safely clean it up and recycle it; otherwise the
+             * tween has already been refreshed and must remain active.
+             */
+            const restarted = this.startTime !== initialStartTime;
+
+            if (!restarted) {
                 Kinex.active_animations.delete(this.target);
+
+                // Avoid duplicate entries in the pool.
+                if (!this._inPool) {
+                    this._inPool = true;
+                    Kinex._instance_pool.push(this);
+                }
+
                 this.resolve();
             }
         }
@@ -211,7 +336,7 @@ export default class Kinex {
 
     /**
      * Compute eased progress for a given frame.
-     * Extracted as a tiny helper so V8 can inline it, reducing the body size of `#step`.
+     * Extracted as a tiny helper so V8 can inline it, reducing the body size of `#update`.
      * @param {number} currentTime
      * @returns {number} eased progress in the range [0,1]
      * @private
@@ -222,6 +347,14 @@ export default class Kinex {
         return this.easing(clamped);
     }
 
+    /**
+     * Generate a cubic-bezier easing function.
+     * @param {number} x1
+     * @param {number} y1
+     * @param {number} x2
+     * @param {number} y2
+     * @returns {(t:number)=>number}
+     */
     static cubic_bezier(x1, y1, x2, y2) {
         const cx = 3 * x1;
         const bx = 3 * (x2 - x1) - cx;
@@ -271,4 +404,40 @@ export default class Kinex {
             return sampleCurveY(solveCurveX(x));
         };
     }
+
+    /* --------------------------------------------------------------------- */
+    //  🔽  Global scheduler helpers
+    /* --------------------------------------------------------------------- */
+
+    /**
+     * Kick-off the shared rAF loop if it is not already running.
+     * @private
+     */
+    static #ensure_scheduler() {
+        if (Kinex._raf_id == null) {
+            Kinex._raf_id = requestAnimationFrame(Kinex.#tick);
+        }
+    }
+
+    /**
+     * One frame tick that advances every live animation and reschedules
+     * itself as long as there is at least one active tween.
+     * Using a private static method keeps it fully encapsulated while still
+     * granting access to private instance fields such as #update().
+     * @param {DOMHighResTimeStamp} time
+     * @private
+     */
+    static #tick = (time) => {
+        for (const anim of Kinex.active_animations.values()) {
+            anim.#update(time);
+        }
+
+        // When the last animation finishes we halt the loop so the browser
+        // can throttle the tab and we do not waste CPU cycles.
+        if (Kinex.active_animations.size) {
+            Kinex._raf_id = requestAnimationFrame(Kinex.#tick);
+        } else {
+            Kinex._raf_id = null;
+        }
+    };
 }
