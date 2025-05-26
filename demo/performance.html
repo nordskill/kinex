@@ -171,8 +171,6 @@
                 const { x, y } = getRandomRingCoordinate(0, 0, windowSize / 2 + starSize);
                 const delay = i * 2;
 
-                // star.style.opacity = 0.3;
-
                 kinex.to(star.style, duration, { left: x + 'px', top: y + 'px', scale: starSize }, {
                     delay,
                     on_complete: () => {
