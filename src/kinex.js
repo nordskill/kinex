@@ -66,6 +66,9 @@ export default class Kinex {
         this.animationFrame = null;
         this.stopped = false;
 
+        // Pre-compute reciprocal to turn division into multiplication inside the hot loop.
+        this._invDuration = 1 / this.duration;
+
         // Reusable container for per-frame property values; avoids GC churn.
         this.currentValues = {};
     }
@@ -173,9 +176,7 @@ export default class Kinex {
         if (this.stopped) return;
         if (!this.startTime) this.startTime = currentTime;
 
-        const elapsedTime = currentTime - this.startTime;
-        let progress = Math.min(elapsedTime / this.duration, 1);
-        progress = this.easing(progress);
+        const progress = this.#compute_progress(currentTime);
 
         const currentValues = this.currentValues;
         const isDOMTarget = this.target instanceof Element; // Covers HTMLElement, SVGElement, etc.; single prototype walk
@@ -207,6 +208,19 @@ export default class Kinex {
             }
         }
     };
+
+    /**
+     * Compute eased progress for a given frame.
+     * Extracted as a tiny helper so V8 can inline it, reducing the body size of `#step`.
+     * @param {number} currentTime
+     * @returns {number} eased progress in the range [0,1]
+     * @private
+     */
+    #compute_progress(currentTime) {
+        const raw = (currentTime - this.startTime) * this._invDuration;
+        const clamped = raw < 1 ? raw : 1; // avoid Math.min call in hot path
+        return this.easing(clamped);
+    }
 
     static cubic_bezier(x1, y1, x2, y2) {
         const cx = 3 * x1;
