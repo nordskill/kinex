@@ -120,16 +120,26 @@
 
             },
             'waapi': (star, i) => {
+                // Make sure there is no lingering animation tied to this star from a previous iteration
+                if (star.waapiAnimation) {
+                    star.waapiAnimation.cancel();
+                }
+
                 const { x, y } = getRandomRingCoordinate(0, 0, windowSize / 2 + starSize);
                 const delay = i * 2;
 
+                // Reset to baseline before starting the next loop so each hop always starts from the centre
+                star.style.transform = 'translate(0px, 0px) scale(1)';
                 star.style.opacity = 0.3;
 
-                const animation = star.animate({ transform: `translate(${x}px, ${y}px) scale(${starSize})`, opacity: 1 }, {
-                    duration: duration,
-                    easing: 'linear',
-                    delay,
-                });
+                const animation = star.animate(
+                    { transform: `translate(${x}px, ${y}px) scale(${starSize})`, opacity: 1 },
+                    {
+                        duration,
+                        easing: 'linear',
+                        delay,
+                    },
+                );
 
                 star.waapiAnimation = animation;
 
@@ -176,25 +186,31 @@
             }
         }
 
+        /**
+         * Stops every running animation (Kinex, WAAPI, GSAP) and purges all star nodes.
+         * This guarantees that each test run starts from an identical, clean slate and
+         * prevents orphaned animations from polluting performance measurements.
+         */
+        function resetAll() {
+            // Stop Kinex tweens
+            kinex.stop_all();
+
+            // Cancel every active Web-Animations API animation
+            document.getAnimations().forEach(anim => anim.cancel());
+
+            // Nuke any GSAP tweens that might still be alive
+            gsap.killTweensOf('*');
+
+            // Remove leftover DOM nodes and clear local cache
+            container.innerHTML = '';
+            stars.length = 0;
+        }
+
         const buttons = document.querySelectorAll('.buttons button');
         buttons.forEach(button => {
             button.addEventListener('click', () => {
-                kinex.stop_all();
-
-                stars.forEach(star => {
-                    // Stop GSAP animations
-                    gsap.killTweensOf(star);
-
-                    // Stop WAAPI animations
-                    if (star.waapiAnimation) {
-                        star.waapiAnimation.cancel();
-                        star.waapiAnimation = null;
-                    }
-
-                    star.remove();
-                });
-
-                stars = [];
+                // Wipe the slate clean before switching provider
+                resetAll();
 
                 buttons.forEach(b => {
                     b.classList.toggle('active', b === button);
