@@ -116,8 +116,6 @@ export default class Kinex {
     }
 
     #get_start_value(name, endValue) {
-
-        if (this.reversed) return endValue;
         if (this.target instanceof Element) {
             const currentValue = this.target.style[name];
             if (currentValue === '') {
