@@ -1,6 +1,6 @@
 {
     "name": "@nordskill/kinex",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "description": "Kinex (Kinetic Expressions): The World's smallest and fastest JavaScript animation library, designed to meet 90% of common daily animation needs.",
     "main": "src/kinex.js",
     "scripts": {
