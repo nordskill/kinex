@@ -46,20 +46,34 @@ Animates the specified properties of the target to new values over a given durat
 - `properties`: An object defining the end values for the properties to animate.
 - `options` (optional): Additional settings like `easing`, `delay`, and callbacks (`on_start`, `on_update`, `on_complete`).
 
-**Minimal Example**
+**Minimal Examples**
+
+**Box Style Animation**
 ```javascript
 const box = document.querySelector('#box');
 
-Kinex.to(box, 1000, { borderRadius: '20px' });
+kinex.to(box.style, 1000, { borderRadius: '20px' });
+```
+
+**Generic Object Animation**
+```javascript
+const obj = { value: 0 };
+
+kinex.to(obj, 1000, { value: 100 });
+```
+
+**Window Scroll Animation**
+```javascript
+kinex.to(window, 1000, { scrollY: 800 }, { easing: [0.25, 0, 0, 1] });
 ```
 
 **Full Example:**
 ```javascript
 // Move an element to a new position and change opacity over 1 second.
-// Animates with 500 miliseconds delay and easing.
+// Animates with 500 milliseconds delay and easing.
 const box = document.querySelector('#box');
 
-Kinex.to(box, 1000, { borderRadius: '20px', opacity: 1 }, {
+kinex.to(box.style, 1000, { borderRadius: '20px', opacity: 1 }, {
     delay: 500,
     easing: [0.5, 0, 0, 1],
     on_start: () => console.log('box animation starts'),
@@ -79,7 +93,7 @@ Animates the properties of the target from the specified values to their current
 // Fade in an element from 0 to its current opacity in 500 milliseconds
 const circle = document.querySelector('#circle');
 
-kinex.from(circle, 500, { opacity: 0 });
+kinex.from(circle.style, 500, { opacity: 0 });
 ```
 
 3. `.stop()`
@@ -88,7 +102,8 @@ Stops an animation.
 **Example:**
 ```javascript
 // Starts and then immediately stops the animation
-const boxAnimation = kinex.to(box, 1000, { opacity: 0 });
+const box = document.querySelector('#box');
+const boxAnimation = kinex.to(box.style, 1000, { opacity: 0 });
 boxAnimation.stop();
 ```
 
@@ -128,7 +143,7 @@ To use cubic Bezier easing, provide an array with four numbers `[x1, y1, x2, y2]
 **Example:**
 ```javascript
 // Animate an element with a custom cubic Bezier easing function
-Kinex.to(document.querySelector('#box'), 1000, { left: "200px" }, {
+kinex.to(document.querySelector('#box').style, 1000, { left: "200px" }, {
     easing: [0.42, 0, 0.58, 1] // Custom cubic Bezier easing
 });
 ```
@@ -144,11 +159,11 @@ async function myAnimation() {
     const box = document.querySelector('#box');
 
     // Wait for the first animation to finish
-    await kinex.to(box, 1000, { left: '200px' });
+    await kinex.to(box.style, 1000, { left: '200px' });
     console.log('First animation done!');
 
     // Start another animation after the first one is complete
-    await kinex.to(box, 500, { opacity: 0.5 });
+    await kinex.to(box.style, 500, { opacity: 0.5 });
     console.log('Second animation done!');
 
 }
