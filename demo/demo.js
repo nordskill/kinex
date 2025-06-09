@@ -8,7 +8,8 @@ const obj = {
     some_property: 1
 }
 
-kinex.to(obj, 150, { some_property: 100 }, {
+kinex.to(obj, { some_property: 100 }, {
+    duration: 150,
     easing: [0.5, 0, 0, 0.5],
     on_start: () => console.log('object\'s "some_property" interpolation starts'),
     on_update: (values) => console.log(values),
@@ -25,7 +26,7 @@ const coords2 = { x: 0, y: 0, opacity: 1 };
 
 setTimeout(async () => {
 
-    kinex.to(box1.style, 1000, { opacity: 0.5, left: '120px' }, {
+    kinex.to(box1.style, { opacity: 0.5, left: '120px' }, {
         easing: [0.25, 0, 0, 1],
         on_start: () => {
             console.log('box 1 starts moving');
@@ -35,12 +36,12 @@ setTimeout(async () => {
         }
     });
 
-    await kinex.to(box2.style, 1000, { opacity: 0.5, top: '80px' }, {
+    await kinex.to(box2.style, { opacity: 0.5, top: '80px' }, {
         easing: [0.25, 0, 0, 1],
         delay: 500
     });
 
-    // kinex.to(coords1, 1000, { x: 200, opacity: 0.5 }, {
+    // kinex.to(coords1, { x: 200, opacity: 0.5 }, {
     //     easing: [0.25, 0, 0, 1],
     //     on_start: (values) => {
     //         console.log(values);
@@ -53,7 +54,7 @@ setTimeout(async () => {
     //         console.log(values);
     //     }
     // });
-    // await kinex.to(coords2, 1000, { y: 100, opacity: 0.5 }, {
+    // await kinex.to(coords2, { y: 100, opacity: 0.5 }, {
     //     easing: [0.25, 0, 0, 1],
     //     on_start: (values) => {
     //         console.log(values);

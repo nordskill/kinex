@@ -51,36 +51,36 @@ export default class Kinex {
     _inPool = false;
 
     /**
-     * Tween `target` from its current values to `properties`.
+     * Tween `target` from its current values to `endValues`.
      * @param {Object|Element|Window} target
-     * @param {number} duration           Duration in milliseconds.
-     * @param {Object<string,number|string>} properties  Final values.
-     * @param {Object} [options]
+     * @param {Object<string,number|string>} endValues  Final values.
+     * @param {Object} [options]  Options including duration (defaults to 1000ms).
+     * @param {number} [options.duration=1000]  Duration in milliseconds.
      * @returns {Promise & {stop():Kinex}}
      */
-    static to(target, duration, properties, options = {}) {
-        return Kinex.#get_or_create_instance(target, duration, properties, options).#animate();
+    static to(target, endValues, options = {}) {
+        const duration = options.duration || 1000;
+        return Kinex.#get_or_create_instance(target, duration, endValues, options).#animate();
     }
 
     /**
      * Like {@link Kinex.to} but starts from the given values and animates to
      * the target's current state.
      * @param {Object|Element|Window} target
-     * @param {number} duration
-     * @param {Object<string,number|string>} properties  Start values.
-     * @param {Object} [options]
+     * @param {Object<string,number|string>} startValues  Start values.
+     * @param {Object} [options]  Options including duration (defaults to 1000ms).
+     * @param {number} [options.duration=1000]  Duration in milliseconds.
      * @returns {Promise & {stop():Kinex}}
      */
-    static from(target, duration, properties, options = {}) {
-        const startProperties = Object.fromEntries(
-            Object.entries(properties).map(([prop, value]) => [prop, value])
-        );
-        const endProperties = Object.fromEntries(
-            Object.entries(properties).map(([prop, value]) => [prop, target[prop] || 0])
-        );
-        return Kinex.#get_or_create_instance(target, duration, endProperties, {
+    static from(target, startValues, options = {}) {
+        const duration = options.duration || 1000;
+        const endValues = {};
+        for (const prop in startValues) {
+            endValues[prop] = target[prop] || 0;
+        }
+        return Kinex.#get_or_create_instance(target, duration, endValues, {
             ...options,
-            startProperties
+            startProperties: startValues
         }).#animate();
     }
 
