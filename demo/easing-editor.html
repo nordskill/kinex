@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Cubic Bézier Curve Editor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        svg {
+            border: 1px solid #000;
+            background-color: #fff;
+        }
+
+        svg text {
+            pointer-events: none;
+            user-select: none;
+        }
+
+        #coordinates {
+            margin-top: 10px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        #snapCheckbox {
+            margin-top: 10px;
+        }
+
+        #copyButton {
+            margin-left: 10px;
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #copyButton:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <svg id="bezierSVG" width="600" height="600" viewBox="0 0 600 600"></svg>
+        <div>
+            <span id="coordinates"></span>
+            <button id="copyButton">Copy</button>
+        </div>
+        <div id="snapCheckbox">
+            <label>
+                <input type="checkbox" id="snapToGrid"> Snap to Grid
+            </label>
+        </div>
+    </div>
+
+    <script>
+        const svg = document.getElementById('bezierSVG');
+        const coordsDisplay = document.getElementById('coordinates');
+        const snapCheckbox = document.getElementById('snapToGrid');
+        const copyButton = document.getElementById('copyButton');
+
+        const width = 600;
+        const height = 600;
+        const scale = width / 3; // 3 units wide (-1 to 2)
+        const offset = scale; // 1 unit offset for the visible area
+        const gridStep = scale / 20; // 0.05 step
+
+        let points = [
+            { x: offset, y: height - offset },
+            { x: offset + scale * 0.25, y: height - offset },
+            { x: offset + scale * 0.75, y: height - offset - scale },
+            { x: offset + scale, y: height - offset - scale }
+        ];
+
+        function createSVGElement(type, attributes) {
+            const elem = document.createElementNS("http://www.w3.org/2000/svg", type);
+            for (const [key, value] of Object.entries(attributes)) {
+                elem.setAttribute(key, value);
+            }
+            return elem;
+        }
+
+        function drawGrid() {
+            const gridGroup = createSVGElement('g', { id: 'grid' });
+
+            // 0.05 step grid lines (less opaque)
+            for (let x = 0; x <= width; x += gridStep) {
+                gridGroup.appendChild(createSVGElement('line', {
+                    x1: x, y1: 0, x2: x, y2: height,
+                    stroke: '#ddd', 'stroke-width': 1, 'stroke-opacity': '0.3'
+                }));
+            }
+            for (let y = 0; y <= height; y += gridStep) {
+                gridGroup.appendChild(createSVGElement('line', {
+                    x1: 0, y1: y, x2: width, y2: y,
+                    stroke: '#ddd', 'stroke-width': 1, 'stroke-opacity': '0.3'
+                }));
+            }
+
+            // 0.25 step grid lines (more opaque)
+            for (let x = 0; x <= width; x += scale / 4) {
+                gridGroup.appendChild(createSVGElement('line', {
+                    x1: x, y1: 0, x2: x, y2: height,
+                    stroke: '#ddd', 'stroke-width': 1, 'stroke-opacity': '0.6'
+                }));
+            }
+            for (let y = 0; y <= height; y += scale / 4) {
+                gridGroup.appendChild(createSVGElement('line', {
+                    x1: 0, y1: y, x2: width, y2: y,
+                    stroke: '#ddd', 'stroke-width': 1, 'stroke-opacity': '0.6'
+                }));
+            }
+
+            // Main square
+            gridGroup.appendChild(createSVGElement('rect', {
+                x: offset, y: offset, width: scale, height: scale,
+                stroke: '#999', 'stroke-width': 2, fill: 'none'
+            }));
+
+            // Axes
+            gridGroup.appendChild(createSVGElement('line', {
+                x1: 0, y1: height - offset, x2: width, y2: height - offset,
+                stroke: '#999', 'stroke-width': 2
+            }));
+            gridGroup.appendChild(createSVGElement('line', {
+                x1: offset, y1: height, x2: offset, y2: 0,
+                stroke: '#999', 'stroke-width': 2
+            }));
+
+            // Labels
+            for (let i = -1; i <= 2; i += 0.5) {
+                gridGroup.appendChild(createSVGElement('text', {
+                    x: offset + i * scale, y: height - offset + 20,
+                    'text-anchor': 'middle', 'dominant-baseline': 'middle',
+                    'font-size': '14px', fill: '#000'
+                })).textContent = i.toFixed(1);
+
+                gridGroup.appendChild(createSVGElement('text', {
+                    x: offset - 20, y: height - (offset + i * scale),
+                    'text-anchor': 'end', 'dominant-baseline': 'middle',
+                    'font-size': '14px', fill: '#000'
+                })).textContent = i.toFixed(1);
+            }
+
+            svg.appendChild(gridGroup);
+        }
+
+        function updateBezierCurve() {
+            let curve = document.getElementById('bezierCurve');
+            if (!curve) {
+                curve = createSVGElement('path', { id: 'bezierCurve', stroke: 'red', 'stroke-width': 2, fill: 'none' });
+                svg.appendChild(curve);
+            }
+            curve.setAttribute('d', `M${points[0].x},${points[0].y} C${points[1].x},${points[1].y} ${points[2].x},${points[2].y} ${points[3].x},${points[3].y}`);
+        }
+
+        function updateHandles() {
+            let handles = document.getElementById('handles');
+            if (!handles) {
+                handles = createSVGElement('g', { id: 'handles' });
+                svg.appendChild(handles);
+            }
+            handles.innerHTML = '';
+            handles.appendChild(createSVGElement('line', {
+                x1: points[0].x, y1: points[0].y, x2: points[1].x, y2: points[1].y,
+                stroke: 'rgba(0, 0, 255, 0.5)', 'stroke-width': 1
+            }));
+            handles.appendChild(createSVGElement('line', {
+                x1: points[2].x, y1: points[2].y, x2: points[3].x, y2: points[3].y,
+                stroke: 'rgba(0, 0, 255, 0.5)', 'stroke-width': 1
+            }));
+        }
+
+        function updatePoints() {
+            let pointsGroup = document.getElementById('points');
+            if (!pointsGroup) {
+                pointsGroup = createSVGElement('g', { id: 'points' });
+                svg.appendChild(pointsGroup);
+            }
+            pointsGroup.innerHTML = '';
+            points.forEach((point, index) => {
+                const circle = createSVGElement('circle', {
+                    cx: point.x, cy: point.y, r: 5, fill: 'blue'
+                });
+                if (index === 1 || index === 2) {
+                    circle.setAttribute('class', 'draggable');
+                    circle.style.cursor = 'move';
+                }
+                pointsGroup.appendChild(circle);
+            });
+        }
+
+        function formatNumber(num) {
+            return parseFloat(num.toFixed(2)).toString();
+        }
+
+        function updateCoordinates() {
+            const p1 = [(points[1].x - offset) / scale, (height - points[1].y - offset) / scale];
+            const p2 = [(points[2].x - offset) / scale, (height - points[2].y - offset) / scale];
+            const formattedArray = [
+                formatNumber(p1[0]),
+                formatNumber(p1[1]),
+                formatNumber(p2[0]),
+                formatNumber(p2[1])
+            ];
+            coordsDisplay.textContent = `[${formattedArray.join(', ')}]`;
+        }
+
+        function draw() {
+            updateBezierCurve();
+            updateHandles();
+            updatePoints();
+            updateCoordinates();
+        }
+
+        function snapToGrid(value) {
+            return Math.round(value / gridStep) * gridStep;
+        }
+
+        drawGrid();
+        draw();
+
+        let draggingPoint = null;
+
+        svg.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('draggable')) {
+                draggingPoint = Array.from(e.target.parentNode.children).indexOf(e.target);
+                e.preventDefault();
+            }
+        });
+
+        svg.addEventListener('mousemove', (e) => {
+            if (draggingPoint !== null) {
+                const rect = svg.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+                let y = e.clientY - rect.top;
+
+                if (snapCheckbox.checked) {
+                    x = snapToGrid(x);
+                    y = snapToGrid(y);
+                }
+
+                points[draggingPoint].x = x;
+                points[draggingPoint].y = y;
+                draw();
+            }
+        });
+
+        svg.addEventListener('mouseup', () => {
+            draggingPoint = null;
+        });
+
+        svg.addEventListener('mouseleave', () => {
+            draggingPoint = null;
+        });
+
+        snapCheckbox.addEventListener('change', draw);
+
+        copyButton.addEventListener('click', () => {
+            const textToCopy = coordsDisplay.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                alert('Copied to clipboard!');
+            }).catch(err => {
+                console.error('Error in copying text: ', err);
+            });
+        });
+    </script>
+</body>
+
+</html>

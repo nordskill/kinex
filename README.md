@@ -2,6 +2,8 @@
 
 Kinex (Kinetic Expressions): The World's smallest and fastest JavaScript animation library, designed to meet 90% of common daily animation needs.
 
+[Visual ease editor](https://kinex.dev/#bezier-editor)
+
 > ⚠️ Read about the breaking changes in v2.0.0 at the end of the page. 
 
 ## Installation
@@ -147,6 +149,8 @@ kinex.to(position, { x: 100, y: 50 }, {
 Kinex supports custom easing functions using cubic Bezier curves, which allow for more complex and smooth animations. A cubic Bezier curve is defined by four control points that shape the curve's acceleration and deceleration over time. By specifying these points, you can create custom easing effects like ease-in, ease-out, or a combination of both.
 
 To use cubic Bezier easing, provide an array with four numbers `[x1, y1, x2, y2]` representing the control points. For example, `[0.6, 0, 0.4, 1]` creates a smooth ease-in-out effect.
+
+You can use the visual [Bezier Curve Editor](https://kinex.dev/#bezier-editor) to create control custom points.
 
 **Example:**
 ```javascript
