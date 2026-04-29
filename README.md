@@ -103,6 +103,7 @@ Animates the properties of the target from the specified values to their current
 // Fade in an element from 0 to its current opacity in 500 milliseconds
 const circle = document.querySelector('#circle');
 
+circle.style.opacity = 1;
 kinex.from(circle.style, { opacity: 0 }, { duration: 500 });
 ```
 
@@ -146,7 +147,7 @@ kinex.to(position, { x: 100, y: 50 }, {
 
 ## Cubic-Bezier Easing in Kinex
 
-Kinex supports custom easing functions using cubic Bezier curves, which allow for more complex and smooth animations. A cubic Bezier curve is defined by four control points that shape the curve's acceleration and deceleration over time. By specifying these points, you can create custom easing effects like ease-in, ease-out, or a combination of both.
+Kinex supports custom easing functions using cubic Bezier curves, which allow for more complex and smooth animations. A cubic Bezier easing curve is defined by two control points, represented as four numbers that shape the curve's acceleration and deceleration over time. By specifying these points, you can create custom easing effects like ease-in, ease-out, or a combination of both.
 
 To use cubic Bezier easing, provide an array with four numbers `[x1, y1, x2, y2]` representing the control points. For example, `[0.6, 0, 0.4, 1]` creates a smooth ease-in-out effect.
 
@@ -183,7 +184,7 @@ async function myAnimation() {
 myAnimation();
 ```
 
-In this example, the first animation moves an element to the left over 1 second. After it finishes, a message is logged, and then a second animation starts to change the opacity. This shows how you can run animations one after another using `async/await` in a simple way.
+In this example, the first animation moves an element horizontally over 1 second. After it finishes, a message is logged, and then a second animation starts to change the opacity. This shows how you can run animations one after another using `async/await` in a simple way.
 
 ## Breaking Changes in v2.0.0
 
@@ -213,5 +214,5 @@ kinex.from(element.style, { opacity: 0 }, { duration: 500 })
 
 // Or use 1000ms default duration
 kinex.to(element.style, { opacity: 1 }, { easing: [0.25, 0, 0, 1] })
-kinex.from(element.style, { opacity: 0 }, { duration: 500 })
+kinex.from(element.style, { opacity: 0 })
 ```
